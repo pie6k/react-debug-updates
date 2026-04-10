@@ -8,7 +8,7 @@ Visual debugging overlays and console logging for React re-renders. See exactly 
 
 ## How it works
 
-Hooks into `__REACT_DEVTOOLS_GLOBAL_HOOK__` to intercept every React commit. No wrappers, no HOCs, no code changes — just call `attachRenderLogger()` and you get:
+Hooks into `__REACT_DEVTOOLS_GLOBAL_HOOK__` to intercept every React commit. Works in any React web environment — browsers, Electron, iframes — no React DevTools extension required. No wrappers, no HOCs, no code changes — just call `attachRenderLogger()` and you get:
 
 - **Console logging** — grouped, color-coded re-render reports with component tree paths and render durations
 - **Visual overlays** — highlight boxes on re-rendered DOM nodes with a heat-map color scale (blue → red as render count increases)
@@ -26,10 +26,12 @@ pnpm add react-debug-updates
 
 ## Quick start
 
+Import and call `attachRenderLogger` **before** React renders anything — ideally at the very top of your entry point. This ensures the hook is in place before the first commit.
+
 ```ts
 import { attachRenderLogger } from "react-debug-updates";
 
-// Call early in your app's entry point (dev only)
+// Call before React renders — top of your entry point
 const logger = attachRenderLogger({
   highlight: true,
   showCauses: true,
@@ -50,7 +52,7 @@ if (process.env.NODE_ENV === "development") {
 
 ## Requirements
 
-- React **DevTools extension** installed, OR a **React dev build** (the library needs `__REACT_DEVTOOLS_GLOBAL_HOOK__`)
+- A **React dev build** (which automatically creates `__REACT_DEVTOOLS_GLOBAL_HOOK__`) — no browser extension needed
 - For `showCauses` and render durations: React must be in **dev mode** (provides `_debugHookTypes` and `actualDuration` on fibers)
 
 ## API
