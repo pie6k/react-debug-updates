@@ -4,7 +4,7 @@ Visual debugging overlays and console logging for React re-renders. See exactly 
 
 ![highlight overlays](https://img.shields.io/badge/overlays-visual%20highlights-61dafb) ![zero config](https://img.shields.io/badge/setup-zero%20config-green)
 
-![demo](demo.gif)
+<img src="demo.gif" alt="demo" width="852" height="476" />
 
 ## How it works
 
