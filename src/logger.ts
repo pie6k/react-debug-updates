@@ -2,11 +2,18 @@ import type {
   DevToolsHook,
   FiberRoot,
   LoggerOptions,
+  PendingEntry,
   RenderEntry,
   RenderLogger,
 } from "./types.js";
-import { collectPending } from "./fiber.js";
-import { formatCausesConsole } from "./format.js";
+import {
+  detectRenders,
+  findNearestDOMNode,
+  getComponentName,
+  getFiberPath,
+} from "./fiber.js";
+import { detectCauses } from "./causes.js";
+import { logRerendersToConsole } from "./format.js";
 import { HIGHLIGHT_DEFAULTS, createBatcher } from "./batcher.js";
 import { disposeAllOverlays } from "./overlay.js";
 
@@ -62,12 +69,28 @@ export function attachRenderLogger(
   ) => {
     previousOnCommit(rendererID, root, priorityLevel);
 
-    const pendingEntries = collectPending(root.current, mode, showCauses);
+    // 1. Detect which component fibers actually re-rendered (pure fiber analysis)
+    const detectedRenders = detectRenders(root.current, mode);
+    if (detectedRenders.length === 0) return;
 
-    for (let i = 0; i < pendingEntries.length; i++) {
-      const pendingEntry = pendingEntries[i];
+    // 2. Build full entries: resolve names, DOM nodes, causes
+    const pendingEntries: PendingEntry[] = [];
 
-      const entry: RenderEntry = {
+    for (let i = 0; i < detectedRenders.length; i++) {
+      const { fiber, depth } = detectedRenders[i];
+      const name = getComponentName(fiber);
+      if (!name) continue;
+
+      const pendingEntry: PendingEntry = {
+        component: name,
+        path: getFiberPath(fiber),
+        duration: fiber.actualDuration ?? 0,
+        depth,
+        domNode: findNearestDOMNode(fiber),
+        causes: showCauses ? detectCauses(fiber) : [],
+      };
+
+      const renderEntry: RenderEntry = {
         component: pendingEntry.component,
         path: pendingEntry.path,
         duration: pendingEntry.duration,
@@ -75,42 +98,18 @@ export function attachRenderLogger(
         causes: pendingEntry.causes,
       };
 
-      if (filter && !filter(entry)) continue;
+      if (filter && !filter(renderEntry)) continue;
 
       if (entries.length >= bufferSize) entries.shift();
-      entries.push(entry);
+      entries.push(renderEntry);
 
+      pendingEntries.push(pendingEntry);
       batcher?.push(pendingEntry);
     }
 
-    // Console output
-    if (!silent && pendingEntries.length > 0) {
-      console.groupCollapsed(
-        `%c⚛ ${pendingEntries.length} re-render${pendingEntries.length > 1 ? "s" : ""}`,
-        "color: #61dafb; font-weight: bold",
-      );
-
-      for (let i = 0; i < pendingEntries.length; i++) {
-        const pendingEntry = pendingEntries[i];
-        const durationText =
-          pendingEntry.duration > 0
-            ? ` (${pendingEntry.duration.toFixed(2)}ms)`
-            : "";
-        console.log(
-          `%c${pendingEntry.component}%c ${pendingEntry.path}${durationText}`,
-          "color: #e8e82e; font-weight: bold",
-          "color: #888",
-        );
-
-        if (showCauses && pendingEntry.causes.length > 0) {
-          const lines = formatCausesConsole(pendingEntry.causes);
-          for (const line of lines) {
-            console.log(`%c${line}`, "color: #aaa");
-          }
-        }
-      }
-
-      console.groupEnd();
+    // 3. Console output
+    if (!silent) {
+      logRerendersToConsole(pendingEntries, showCauses);
     }
   };
 

@@ -1,4 +1,4 @@
-import type { UpdateCause } from "./types.js";
+import type { PendingEntry, UpdateCause } from "./types.js";
 
 // ────────────────────────────────────────────
 // Value formatting
@@ -83,4 +83,41 @@ export function formatCausesConsole(causes: UpdateCause[]): string[] {
   }
 
   return lines;
+}
+
+// ────────────────────────────────────────────
+// Console output
+// ────────────────────────────────────────────
+
+/** Log re-renders as a collapsed console group. */
+export function logRerendersToConsole(
+  entries: PendingEntry[],
+  showCauses: boolean,
+) {
+  if (entries.length === 0) return;
+
+  console.groupCollapsed(
+    `%c⚛ ${entries.length} re-render${entries.length > 1 ? "s" : ""}`,
+    "color: #61dafb; font-weight: bold",
+  );
+
+  for (let i = 0; i < entries.length; i++) {
+    const entry = entries[i];
+    const durationText =
+      entry.duration > 0 ? ` (${entry.duration.toFixed(2)}ms)` : "";
+    console.log(
+      `%c${entry.component}%c ${entry.path}${durationText}`,
+      "color: #e8e82e; font-weight: bold",
+      "color: #888",
+    );
+
+    if (showCauses && entry.causes.length > 0) {
+      const lines = formatCausesConsole(entry.causes);
+      for (const line of lines) {
+        console.log(`%c${line}`, "color: #aaa");
+      }
+    }
+  }
+
+  console.groupEnd();
 }

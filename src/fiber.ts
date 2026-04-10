@@ -1,5 +1,4 @@
-import type { Fiber, PendingEntry } from "./types.js";
-import { detectCauses } from "./causes.js";
+import type { Fiber, DetectedRender } from "./types.js";
 
 // ────────────────────────────────────────────
 // Fiber tag constants
@@ -102,7 +101,7 @@ function didFiberRender(nextFiber: Fiber): boolean {
 }
 
 // ────────────────────────────────────────────
-// Collect re-rendered components from a commit
+// Detect which components re-rendered in a commit
 // ────────────────────────────────────────────
 //
 // Mirrors React DevTools' updateFiberRecursively / updateChildrenRecursively.
@@ -113,19 +112,21 @@ function didFiberRender(nextFiber: Fiber): boolean {
 // React bailed out that entire subtree (via cloneChildFibers) — we skip it.
 // Otherwise, we use nextChild.alternate as the previous fiber and check
 // didFiberRender (PerformedWork) to see if user code actually ran.
+//
+// Returns lightweight DetectedRender objects — just the fiber and its depth.
+// DOM lookup, cause detection, and formatting are the caller's responsibility.
 
-export function collectPending(
+export function detectRenders(
   root: Fiber,
   mode: "self-triggered" | "all",
-  trackCauses: boolean,
-): PendingEntry[] {
-  const entries: PendingEntry[] = [];
+): DetectedRender[] {
+  const results: DetectedRender[] = [];
   const selfTriggeredOnly = mode === "self-triggered";
 
   // The alternate of the committed root is the previous tree's root.
   // On initial mount this is null — nothing to report.
   const previousRoot = root.alternate;
-  if (!previousRoot) return entries;
+  if (!previousRoot) return results;
 
   function walk(
     nextFiber: Fiber,
@@ -140,17 +141,7 @@ export function collectPending(
       didFiberRender(nextFiber) &&
       (!selfTriggeredOnly || isSelfTriggered(nextFiber))
     ) {
-      const name = getComponentName(nextFiber);
-      if (name) {
-        entries.push({
-          component: name,
-          path: getFiberPath(nextFiber),
-          duration: nextFiber.actualDuration ?? 0,
-          depth,
-          domNode: findNearestDOMNode(nextFiber),
-          causes: trackCauses ? detectCauses(nextFiber) : [],
-        });
-      }
+      results.push({ fiber: nextFiber, depth });
     }
 
     // ── Walk children, matching with previous tree ──
@@ -179,5 +170,5 @@ export function collectPending(
   }
 
   walk(root, previousRoot, 0);
-  return entries;
+  return results;
 }

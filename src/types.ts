@@ -53,7 +53,17 @@ export interface UpdateCause {
 }
 
 // ────────────────────────────────────────────
-// Pending entry (commit-path — kept lightweight)
+// Detected render (output of fiber tree analysis)
+// ────────────────────────────────────────────
+
+/** A component fiber that was detected as re-rendered during a commit. */
+export interface DetectedRender {
+  fiber: Fiber;
+  depth: number;
+}
+
+// ────────────────────────────────────────────
+// Pending entry (ready for overlay / console)
 // ────────────────────────────────────────────
 
 export interface PendingEntry {
