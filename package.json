@@ -1,0 +1,61 @@
+{
+  "name": "react-debug-updates",
+  "version": "0.1.0",
+  "description": "See why React components re-render — visual overlays, console logging, and hook-level cause detection with zero code changes",
+  "type": "module",
+  "main": "./dist/react-debug-updates.cjs",
+  "module": "./dist/react-debug-updates.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/react-debug-updates.js"
+      },
+      "require": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/react-debug-updates.cjs"
+      }
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "vite build && tsc --emitDeclarationOnly",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "yarn build"
+  },
+  "keywords": [
+    "react",
+    "debug",
+    "render",
+    "rerender",
+    "re-render",
+    "why-did-you-render",
+    "highlight updates",
+    "performance",
+    "devtools",
+    "overlay",
+    "profiler",
+    "wasted renders",
+    "unnecessary renders",
+    "render tracker",
+    "render visualizer",
+    "react updates",
+    "useState",
+    "useContext"
+  ],
+  "license": "MIT",
+  "author": "",
+  "repository": {
+    "type": "git",
+    "url": ""
+  },
+  "devDependencies": {
+    "typescript": "^5.8",
+    "vite": "^6.3"
+  },
+  "packageManager": "yarn@4.13.0+sha512.5c20ba010c99815433e5c8453112165e673f1c7948d8d2b267f4b5e52097538658388ebc9f9580656d9b75c5cc996f990f611f99304a2197d4c56d21eea370e7"
+}
