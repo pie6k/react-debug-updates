@@ -82,40 +82,64 @@ function isSelfTriggered(fiber: Fiber): boolean {
 }
 
 // ────────────────────────────────────────────
-// Collect pending entries from a fiber tree
+// Collector with commit tracking
 // ────────────────────────────────────────────
+//
+// React double-buffers fibers: on each commit the work-in-progress tree becomes
+// the current tree. Fibers that were actually rendered are *new* objects (recycled
+// from their alternates). Fibers that were skipped (bailed out or in an unrelated
+// subtree) are the *same* objects as the previous current tree.
+//
+// We exploit this: by remembering which fiber objects were current last commit,
+// we can tell whether a fiber was actually processed — if the object identity
+// changed, it was rendered; if it's the same object, its PerformedWork flag is
+// stale from a prior commit and should be ignored.
 
-export function collectPending(
-  root: Fiber,
-  mode: "self-triggered" | "all",
-  trackCauses: boolean,
-): PendingEntry[] {
-  const entries: PendingEntry[] = [];
-  const selfTriggeredOnly = mode === "self-triggered";
+export function createCollector() {
+  let previousCommitFibers = new WeakSet<Fiber>();
 
-  function walk(fiber: Fiber, depth: number) {
-    if (
-      COMPONENT_TAGS.has(fiber.tag) &&
-      fiber.flags & PerformedWork &&
-      fiber.alternate !== null &&
-      (!selfTriggeredOnly || isSelfTriggered(fiber))
-    ) {
-      const name = getComponentName(fiber);
-      if (name) {
-        entries.push({
-          component: name,
-          path: getFiberPath(fiber),
-          duration: fiber.actualDuration ?? 0,
-          depth,
-          domNode: findNearestDOMNode(fiber),
-          causes: trackCauses ? detectCauses(fiber) : [],
-        });
+  return function collectPending(
+    root: Fiber,
+    mode: "self-triggered" | "all",
+    trackCauses: boolean,
+  ): PendingEntry[] {
+    const currentCommitFibers = new WeakSet<Fiber>();
+    const entries: PendingEntry[] = [];
+    const selfTriggeredOnly = mode === "self-triggered";
+
+    function walk(fiber: Fiber, depth: number) {
+      const isComponent = COMPONENT_TAGS.has(fiber.tag);
+
+      // Track all component fibers so we can detect stale ones next commit
+      if (isComponent) {
+        currentCommitFibers.add(fiber);
       }
-    }
-    if (fiber.child) walk(fiber.child, depth + 1);
-    if (fiber.sibling) walk(fiber.sibling, depth);
-  }
 
-  walk(root, 0);
-  return entries;
+      if (
+        isComponent &&
+        fiber.flags & PerformedWork &&
+        fiber.alternate !== null &&
+        !previousCommitFibers.has(fiber) && // same object as last commit → stale
+        (!selfTriggeredOnly || isSelfTriggered(fiber))
+      ) {
+        const name = getComponentName(fiber);
+        if (name) {
+          entries.push({
+            component: name,
+            path: getFiberPath(fiber),
+            duration: fiber.actualDuration ?? 0,
+            depth,
+            domNode: findNearestDOMNode(fiber),
+            causes: trackCauses ? detectCauses(fiber) : [],
+          });
+        }
+      }
+      if (fiber.child) walk(fiber.child, depth + 1);
+      if (fiber.sibling) walk(fiber.sibling, depth);
+    }
+
+    walk(root, 0);
+    previousCommitFibers = currentCommitFibers;
+    return entries;
+  };
 }
