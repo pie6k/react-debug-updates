@@ -19,7 +19,9 @@ const COMPONENT_TAGS = new Set<number>([
   FiberTag.ClassComponent,
   FiberTag.ForwardRef,
   FiberTag.SimpleMemoComponent,
-  FiberTag.MemoComponent,
+  // MemoComponent (14) is intentionally excluded — it's the memo() wrapper fiber,
+  // which can have PerformedWork set during the props comparison even when the
+  // inner component bailed out and didn't actually re-render.
 ]);
 
 const PerformedWork = 0b0000001;
