@@ -18,8 +18,8 @@ function ensureStylesheet(win: Window) {
   style.textContent = `
     @keyframes ${ANIMATION_NAME} {
       0%   { opacity: 0; }
-      8%   { opacity: 1; }
-      40%  { opacity: 1; }
+      8%   { opacity: var(--rdu-opacity, 1); }
+      40%  { opacity: var(--rdu-opacity, 1); }
       100% { opacity: 0; }
     }
     .${ANIMATION_NAME}-box {

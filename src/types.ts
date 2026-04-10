@@ -75,6 +75,8 @@ export interface HighlightOptions {
   animationDuration?: number;
   /** Show text labels (component name, count, duration, cause) above overlays. Default: true */
   showLabels?: boolean;
+  /** Peak opacity of overlay highlights (0–1). Default: 0.3 */
+  opacity?: number;
 }
 
 export interface RenderEntry {

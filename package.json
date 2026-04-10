@@ -25,7 +25,8 @@
   "scripts": {
     "build": "vite build && tsc --emitDeclarationOnly",
     "typecheck": "tsc --noEmit",
-    "prepublishOnly": "yarn build"
+    "prepublishOnly": "yarn build",
+    "release": "npm version patch && npm publish --access public && git push && git push --tags"
   },
   "keywords": [
     "react",

@@ -25,6 +25,7 @@ export const HIGHLIGHT_DEFAULTS: Required<HighlightOptions> = {
   flushInterval: 250,
   animationDuration: 1200,
   showLabels: true,
+  opacity: 0.3,
 };
 
 interface CoalescedEntry {
@@ -80,8 +81,8 @@ export function createBatcher(options: Required<HighlightOptions>) {
       }
     }
 
-    // Write phase: position overlays
-    for (let i = 0; i < toShow.length; i++) {
+    // Write phase: position overlays (reverse order so parents render on top of children)
+    for (let i = toShow.length - 1; i >= 0; i--) {
       const { coalesced, rect } = toShow[i];
       const element = acquireOverlay(coalesced.ownerWindow);
       if (!element) continue;
@@ -97,6 +98,7 @@ export function createBatcher(options: Required<HighlightOptions>) {
       style.height = `${rect.height}px`;
       style.backgroundColor = fillColor;
       style.border = `1.5px solid ${borderColor}`;
+      style.setProperty("--rdu-opacity", String(options.opacity));
       style.animation = `${OVERLAY_ANIMATION_NAME} ${options.animationDuration}ms ease-out forwards`;
 
       const label = element.firstElementChild as HTMLElement;

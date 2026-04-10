@@ -79,6 +79,7 @@ Returns a `RenderLogger` handle, or `null` if the DevTools hook is not available
 | `flushInterval` | `number` | `250` | Milliseconds between overlay flush cycles |
 | `animationDuration` | `number` | `1200` | Overlay fade-out animation duration (ms) |
 | `showLabels` | `boolean` | `true` | Show text labels (name, count, duration, cause) above overlays |
+| `opacity` | `number` | `0.3` | Peak opacity of overlay highlights (0–1) |
 
 ### `RenderLogger`
 
