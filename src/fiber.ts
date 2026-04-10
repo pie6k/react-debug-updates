@@ -91,7 +91,7 @@ export function collectPending(
   const entries: PendingEntry[] = [];
   const selfTriggeredOnly = mode === "self-triggered";
 
-  function walk(fiber: Fiber) {
+  function walk(fiber: Fiber, depth: number) {
     if (
       COMPONENT_TAGS.has(fiber.tag) &&
       fiber.flags & PerformedWork &&
@@ -104,15 +104,16 @@ export function collectPending(
           component: name,
           path: getFiberPath(fiber),
           duration: fiber.actualDuration ?? 0,
+          depth,
           domNode: findNearestDOMNode(fiber),
           causes: trackCauses ? detectCauses(fiber) : [],
         });
       }
     }
-    if (fiber.child) walk(fiber.child);
-    if (fiber.sibling) walk(fiber.sibling);
+    if (fiber.child) walk(fiber.child, depth + 1);
+    if (fiber.sibling) walk(fiber.sibling, depth);
   }
 
-  walk(root);
+  walk(root, 0);
   return entries;
 }

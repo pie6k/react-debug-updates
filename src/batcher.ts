@@ -32,6 +32,8 @@ interface CoalescedEntry {
   count: number;
   totalDuration: number;
   component: string;
+  /** Shallowest fiber depth among coalesced entries (for z-ordering). */
+  depth: number;
   domNode: HTMLElement;
   ownerWindow: Window;
   causeSummary: string;
@@ -58,6 +60,7 @@ export function createBatcher(options: Required<HighlightOptions>) {
       if (existing) {
         existing.count++;
         existing.totalDuration += entry.duration;
+        existing.depth = Math.min(existing.depth, entry.depth);
       } else {
         const win = entry.domNode.ownerDocument?.defaultView;
         if (!win || win.closed) continue;
@@ -65,6 +68,7 @@ export function createBatcher(options: Required<HighlightOptions>) {
           count: 1,
           totalDuration: entry.duration,
           component: entry.component,
+          depth: entry.depth,
           domNode: entry.domNode,
           ownerWindow: win,
           causeSummary: formatCausesShort(entry.causes),
@@ -81,8 +85,11 @@ export function createBatcher(options: Required<HighlightOptions>) {
       }
     }
 
-    // Write phase: position overlays (reverse order so parents render on top of children)
-    for (let i = toShow.length - 1; i >= 0; i--) {
+    // Sort deepest first so parents are appended last (render on top)
+    toShow.sort((a, b) => b.coalesced.depth - a.coalesced.depth);
+
+    // Write phase: position overlays
+    for (let i = 0; i < toShow.length; i++) {
       const { coalesced, rect } = toShow[i];
       const element = acquireOverlay(coalesced.ownerWindow);
       if (!element) continue;

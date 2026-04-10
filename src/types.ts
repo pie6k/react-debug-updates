@@ -60,6 +60,7 @@ export interface PendingEntry {
   component: string;
   path: string;
   duration: number;
+  depth: number;
   domNode: HTMLElement | null;
   causes: UpdateCause[];
 }
