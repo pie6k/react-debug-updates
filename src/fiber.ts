@@ -14,14 +14,16 @@ export const FiberTag = {
   MemoComponent: 14,
 } as const;
 
+// Component tags we report as re-renders.
+// MemoComponent (14) is excluded to avoid double-reporting — it's a wrapper
+// fiber around the inner component. The inner component (FunctionComponent,
+// ForwardRef, or SimpleMemoComponent) has its own PerformedWork flag and
+// will be reported correctly on its own.
 const COMPONENT_TAGS = new Set<number>([
   FiberTag.FunctionComponent,
   FiberTag.ClassComponent,
   FiberTag.ForwardRef,
   FiberTag.SimpleMemoComponent,
-  // MemoComponent (14) is intentionally excluded — it's the memo() wrapper fiber,
-  // which can have PerformedWork set during the props comparison even when the
-  // inner component bailed out and didn't actually re-render.
 ]);
 
 const PerformedWork = 0b0000001;
@@ -82,64 +84,100 @@ function isSelfTriggered(fiber: Fiber): boolean {
 }
 
 // ────────────────────────────────────────────
-// Collector with commit tracking
+// didFiberRender — mirrors React DevTools
 // ────────────────────────────────────────────
 //
-// React double-buffers fibers: on each commit the work-in-progress tree becomes
-// the current tree. Fibers that were actually rendered are *new* objects (recycled
-// from their alternates). Fibers that were skipped (bailed out or in an unrelated
-// subtree) are the *same* objects as the previous current tree.
+// See: react-devtools-shared/src/backend/fiber/shared/DevToolsFiberChangeDetection.js
 //
-// We exploit this: by remembering which fiber objects were current last commit,
-// we can tell whether a fiber was actually processed — if the object identity
-// changed, it was rendered; if it's the same object, its PerformedWork flag is
-// stale from a prior commit and should be ignored.
+// For component fibers (function, class, memo, forwardRef), React sets the
+// PerformedWork flag (bit 0) only when user code actually executes.
+// createWorkInProgress resets flags to NoFlags, so PerformedWork on a
+// work-in-progress fiber is always fresh — never stale from a prior commit.
+//
+// This check must only be called AFTER confirming prevFiber !== nextFiber
+// (i.e. the fiber was actually processed, not a bailed-out subtree).
 
-export function createCollector() {
-  let previousCommitFibers = new WeakSet<Fiber>();
+function didFiberRender(nextFiber: Fiber): boolean {
+  return (nextFiber.flags & PerformedWork) === PerformedWork;
+}
 
-  return function collectPending(
-    root: Fiber,
-    mode: "self-triggered" | "all",
-    trackCauses: boolean,
-  ): PendingEntry[] {
-    const currentCommitFibers = new WeakSet<Fiber>();
-    const entries: PendingEntry[] = [];
-    const selfTriggeredOnly = mode === "self-triggered";
+// ────────────────────────────────────────────
+// Collect re-rendered components from a commit
+// ────────────────────────────────────────────
+//
+// Mirrors React DevTools' updateFiberRecursively / updateChildrenRecursively.
+//
+// React double-buffers fibers. After a commit, root.current is the committed
+// tree and root.current.alternate is the previous tree. We walk both in
+// parallel. At each level, if prevChild and nextChild are the same object,
+// React bailed out that entire subtree (via cloneChildFibers) — we skip it.
+// Otherwise, we use nextChild.alternate as the previous fiber and check
+// didFiberRender (PerformedWork) to see if user code actually ran.
 
-    function walk(fiber: Fiber, depth: number) {
-      const isComponent = COMPONENT_TAGS.has(fiber.tag);
+export function collectPending(
+  root: Fiber,
+  mode: "self-triggered" | "all",
+  trackCauses: boolean,
+): PendingEntry[] {
+  const entries: PendingEntry[] = [];
+  const selfTriggeredOnly = mode === "self-triggered";
 
-      // Track all component fibers so we can detect stale ones next commit
-      if (isComponent) {
-        currentCommitFibers.add(fiber);
+  // The alternate of the committed root is the previous tree's root.
+  // On initial mount this is null — nothing to report.
+  const previousRoot = root.alternate;
+  if (!previousRoot) return entries;
+
+  function walk(
+    nextFiber: Fiber,
+    previousFiber: Fiber | null,
+    depth: number,
+  ) {
+    // ── Check this fiber ──
+    if (
+      COMPONENT_TAGS.has(nextFiber.tag) &&
+      previousFiber !== null &&
+      previousFiber !== nextFiber && // same object → bailed-out subtree
+      didFiberRender(nextFiber) &&
+      (!selfTriggeredOnly || isSelfTriggered(nextFiber))
+    ) {
+      const name = getComponentName(nextFiber);
+      if (name) {
+        entries.push({
+          component: name,
+          path: getFiberPath(nextFiber),
+          duration: nextFiber.actualDuration ?? 0,
+          depth,
+          domNode: findNearestDOMNode(nextFiber),
+          causes: trackCauses ? detectCauses(nextFiber) : [],
+        });
       }
-
-      if (
-        isComponent &&
-        fiber.flags & PerformedWork &&
-        fiber.alternate !== null &&
-        !previousCommitFibers.has(fiber) && // same object as last commit → stale
-        (!selfTriggeredOnly || isSelfTriggered(fiber))
-      ) {
-        const name = getComponentName(fiber);
-        if (name) {
-          entries.push({
-            component: name,
-            path: getFiberPath(fiber),
-            duration: fiber.actualDuration ?? 0,
-            depth,
-            domNode: findNearestDOMNode(fiber),
-            causes: trackCauses ? detectCauses(fiber) : [],
-          });
-        }
-      }
-      if (fiber.child) walk(fiber.child, depth + 1);
-      if (fiber.sibling) walk(fiber.sibling, depth);
     }
 
-    walk(root, 0);
-    previousCommitFibers = currentCommitFibers;
-    return entries;
-  };
+    // ── Walk children, matching with previous tree ──
+    let nextChild = nextFiber.child;
+    let previousChildAtSameIndex = previousFiber?.child ?? null;
+
+    while (nextChild) {
+      let matchedPrevious: Fiber | null;
+
+      if (previousChildAtSameIndex === nextChild) {
+        // Same object identity — React shared this fiber via cloneChildFibers.
+        // The entire subtree was bailed out; passing the same object as both
+        // prev and next causes the prevFiber !== nextFiber guard to skip it.
+        matchedPrevious = nextChild;
+      } else {
+        // Different object — this fiber was processed. The alternate is the
+        // corresponding fiber from the previous tree.
+        matchedPrevious = nextChild.alternate;
+      }
+
+      walk(nextChild, matchedPrevious, depth + 1);
+
+      nextChild = nextChild.sibling;
+      previousChildAtSameIndex = previousChildAtSameIndex?.sibling ?? null;
+    }
+  }
+
+  walk(root, previousRoot, 0);
+  return entries;
 }

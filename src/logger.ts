@@ -5,7 +5,7 @@ import type {
   RenderEntry,
   RenderLogger,
 } from "./types.js";
-import { createCollector } from "./fiber.js";
+import { collectPending } from "./fiber.js";
 import { formatCausesConsole } from "./format.js";
 import { HIGHLIGHT_DEFAULTS, createBatcher } from "./batcher.js";
 import { disposeAllOverlays } from "./overlay.js";
@@ -51,7 +51,6 @@ export function attachRenderLogger(
     : null;
 
   const batcher = highlightOptions ? createBatcher(highlightOptions) : null;
-  const collectPending = createCollector();
 
   const entries: RenderEntry[] = [];
   const previousOnCommit = hook.onCommitFiberRoot.bind(hook);
