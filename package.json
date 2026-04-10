@@ -48,10 +48,14 @@
     "useContext"
   ],
   "license": "MIT",
-  "author": "",
+  "author": "pie6k",
   "repository": {
     "type": "git",
-    "url": ""
+    "url": "git+https://github.com/pie6k/react-debug-updates.git"
+  },
+  "homepage": "https://github.com/pie6k/react-debug-updates#readme",
+  "bugs": {
+    "url": "https://github.com/pie6k/react-debug-updates/issues"
   },
   "devDependencies": {
     "typescript": "^5.8",
