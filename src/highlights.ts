@@ -24,7 +24,8 @@ function heatColor(count: number, alpha: number): string {
 // Animation uses the Web Animations API for precise timing:
 // fixed 150ms fade-in, configurable hold duration, fixed 150ms fade-out.
 
-const FADE_DURATION = 150;
+const FADE_IN_DURATION = 150;
+const FADE_OUT_DURATION = 300;
 
 interface CoalescedEntry {
   count: number;
@@ -41,10 +42,10 @@ export function createHighlighter(config: OverlayConfig) {
   let pending: HighlightEntry[] = [];
   let timer: ReturnType<typeof setInterval> | null = null;
 
-  const totalDuration = FADE_DURATION + config.animationDuration + FADE_DURATION;
-  const fadeInEnd = FADE_DURATION / totalDuration;
+  const totalDuration = FADE_IN_DURATION + config.animationDuration + FADE_OUT_DURATION;
+  const fadeInEnd = FADE_IN_DURATION / totalDuration;
   const fadeOutStart =
-    (FADE_DURATION + config.animationDuration) / totalDuration;
+    (FADE_IN_DURATION + config.animationDuration) / totalDuration;
 
   function flush() {
     if (pending.length === 0) return;
@@ -97,7 +98,6 @@ export function createHighlighter(config: OverlayConfig) {
       const element = acquireOverlay(coalesced.ownerWindow);
       if (!element) continue;
 
-      const fillColor = heatColor(coalesced.count, 0.18);
       const borderColor = heatColor(coalesced.count, 0.75);
       const labelBackground = heatColor(coalesced.count, 0.9);
 
@@ -106,7 +106,6 @@ export function createHighlighter(config: OverlayConfig) {
       style.left = `${rect.left}px`;
       style.width = `${rect.width}px`;
       style.height = `${rect.height}px`;
-      style.backgroundColor = fillColor;
       style.border = `1.5px solid ${borderColor}`;
 
       const label = element.firstElementChild as HTMLElement;
