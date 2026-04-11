@@ -41,7 +41,7 @@ import { startReactUpdatesMonitor } from "react-debug-updates";
 const stop = startReactUpdatesMonitor();
 
 // Later, to clean up:
-stop?.();
+stop();
 ```
 
 ### Dev-only guard
@@ -71,9 +71,9 @@ startReactUpdatesMonitor({
 
 ## API
 
-### `startReactUpdatesMonitor(options?): (() => void) | null`
+### `startReactUpdatesMonitor(options?): () => void`
 
-Returns a `stop` function to unhook from React and remove all overlays, or `null` if the DevTools hook is not available.
+Returns a `stop` function to unhook from React and remove all overlays. Throws if called in a non-browser environment (e.g. SSR).
 
 #### Options
 

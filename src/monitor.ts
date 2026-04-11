@@ -56,7 +56,7 @@ function ensureDevToolsHook(win: Window): DevToolsHook {
  * Call this **before** React renders anything — ideally at the very top of
  * your entry point.
  *
- * Returns a `stop` function to unhook and clean up, or `null` if called
+ * Returns a `stop` function to unhook and clean up. Throws if called
  * in a non-browser environment (e.g. SSR).
  */
 export function startReactUpdatesMonitor({
@@ -68,9 +68,13 @@ export function startReactUpdatesMonitor({
   highlightAnimationDuration = 1200,
   highlightShowLabels = true,
   highlightOpacity = 0.3,
-}: MonitorOptions = {}): (() => void) | null {
-  // SSR guard — nothing to do without a DOM
-  if (typeof window === "undefined") return null;
+}: MonitorOptions = {}): () => void {
+  if (typeof window === "undefined") {
+    throw new Error(
+      "[react-debug-updates] Cannot start monitor in a non-browser environment. " +
+        "Guard the call with a `typeof window !== 'undefined'` check.",
+    );
+  }
 
   const hook = ensureDevToolsHook(window);
 
