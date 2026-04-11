@@ -3,10 +3,10 @@
 // ────────────────────────────────────────────
 //
 // Performance:
-//  - Overlay elements pooled per window, reused via animationend
-//  - Single CSS @keyframes per window, no JS timers per element
+//  - Overlay elements pooled per window, reused after animation completes
+//  - Single stylesheet per window for base styles only
 
-const ANIMATION_NAME = "__rdu-fade";
+const CLASS_PREFIX = "__rdu";
 
 const injectedWindows = new WeakSet<Window>();
 
@@ -16,13 +16,7 @@ function ensureStylesheet(win: Window) {
 
   const style = win.document.createElement("style");
   style.textContent = `
-    @keyframes ${ANIMATION_NAME} {
-      0%   { opacity: 0; }
-      8%   { opacity: var(--rdu-opacity, 1); }
-      40%  { opacity: var(--rdu-opacity, 1); }
-      100% { opacity: 0; }
-    }
-    .${ANIMATION_NAME}-box {
+    .${CLASS_PREFIX}-box {
       position: fixed;
       pointer-events: none;
       box-sizing: border-box;
@@ -30,7 +24,7 @@ function ensureStylesheet(win: Window) {
       opacity: 0;
       will-change: opacity;
     }
-    .${ANIMATION_NAME}-label {
+    .${CLASS_PREFIX}-label {
       position: absolute;
       top: -18px;
       left: -1px;
@@ -98,21 +92,22 @@ export function acquireOverlay(win: Window): HTMLDivElement | null {
 
   if (!element) {
     element = document.createElement("div");
-    element.className = `${ANIMATION_NAME}-box`;
+    element.className = `${CLASS_PREFIX}-box`;
 
     const label = document.createElement("span");
-    label.className = `${ANIMATION_NAME}-label`;
+    label.className = `${CLASS_PREFIX}-label`;
     element.appendChild(label);
-
-    element.addEventListener("animationend", () => {
-      element!.style.animation = "none";
-      element!.remove();
-      pool!.push(element!);
-    });
   }
 
   root.appendChild(element);
   return element;
+}
+
+/** Remove an overlay from the DOM and return it to the pool. */
+export function releaseOverlay(win: Window, element: HTMLDivElement) {
+  element.remove();
+  const pool = pools.get(win);
+  pool?.push(element);
 }
 
 export function disposeAllOverlays() {
@@ -121,5 +116,3 @@ export function disposeAllOverlays() {
   overlayRoots.delete(window);
   pools.delete(window);
 }
-
-export const OVERLAY_ANIMATION_NAME = ANIMATION_NAME;

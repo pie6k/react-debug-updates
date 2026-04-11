@@ -1,6 +1,6 @@
 import type { OverlayConfig, HighlightEntry } from "./types.js";
 import { formatCausesShort } from "./format.js";
-import { acquireOverlay, OVERLAY_ANIMATION_NAME } from "./overlay.js";
+import { acquireOverlay, releaseOverlay } from "./overlay.js";
 
 // ────────────────────────────────────────────
 // Heat color
@@ -20,6 +20,11 @@ function heatColor(count: number, alpha: number): string {
 //
 // Commit path just pushes lightweight entries (no DOM reads, no formatting).
 // Flush (setInterval): batched rect reads → batched DOM writes.
+//
+// Animation uses the Web Animations API for precise timing:
+// fixed 150ms fade-in, configurable hold duration, fixed 150ms fade-out.
+
+const FADE_DURATION = 150;
 
 interface CoalescedEntry {
   count: number;
@@ -35,6 +40,11 @@ interface CoalescedEntry {
 export function createHighlighter(config: OverlayConfig) {
   let pending: HighlightEntry[] = [];
   let timer: ReturnType<typeof setInterval> | null = null;
+
+  const totalDuration = FADE_DURATION + config.animationDuration + FADE_DURATION;
+  const fadeInEnd = FADE_DURATION / totalDuration;
+  const fadeOutStart =
+    (FADE_DURATION + config.animationDuration) / totalDuration;
 
   function flush() {
     if (pending.length === 0) return;
@@ -98,8 +108,6 @@ export function createHighlighter(config: OverlayConfig) {
       style.height = `${rect.height}px`;
       style.backgroundColor = fillColor;
       style.border = `1.5px solid ${borderColor}`;
-      style.setProperty("--rdu-opacity", String(config.opacity));
-      style.animation = `${OVERLAY_ANIMATION_NAME} ${config.animationDuration}ms ease-out forwards`;
 
       const label = element.firstElementChild as HTMLElement;
       if (config.showLabels) {
@@ -117,6 +125,20 @@ export function createHighlighter(config: OverlayConfig) {
         label.textContent = "";
         label.style.backgroundColor = "transparent";
       }
+
+      // Animate: 150ms fade-in → hold → 150ms fade-out
+      const animation = element.animate(
+        [
+          { opacity: 0, easing: "ease-out" },
+          { opacity: config.opacity, offset: fadeInEnd },
+          { opacity: config.opacity, offset: fadeOutStart, easing: "ease-in" },
+          { opacity: 0 },
+        ],
+        { duration: totalDuration, fill: "forwards" },
+      );
+
+      const win = coalesced.ownerWindow;
+      animation.finished.then(() => releaseOverlay(win, element));
     }
   }
 
