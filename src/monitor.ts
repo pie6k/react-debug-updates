@@ -59,16 +59,17 @@ function ensureDevToolsHook(win: Window): DevToolsHook {
  * Returns a `stop` function to unhook and clean up. Throws if called
  * in a non-browser environment (e.g. SSR).
  */
-export function startReactUpdatesMonitor({
-  logToConsole = false,
-  highlight = true,
-  mode = "self-triggered",
-  reasonOfUpdate = false,
-  highlightFlushInterval = 250,
-  highlightAnimationDuration = 1200,
-  highlightShowLabels = true,
-  highlightOpacity = 0.3,
-}: MonitorOptions = {}): () => void {
+export function startReactUpdatesMonitor(options: MonitorOptions = {}): () => void {
+  const {
+    logToConsole = false,
+    highlight = true,
+    mode = "self-triggered",
+    reasonOfUpdate = false,
+    highlightFlushInterval = 250,
+    highlightAnimationDuration = 1200,
+    highlightShowLabels = true,
+    highlightOpacity = 0.3,
+  } = options;
   if (typeof window === "undefined") {
     throw new Error(
       "[react-debug-updates] Cannot start monitor in a non-browser environment. " +
