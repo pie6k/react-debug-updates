@@ -84,7 +84,7 @@ Returns a `stop` function to unhook from React and remove all overlays. Throws i
 | `logToConsole` | `boolean` | `false` | Log re-renders to the console |
 | `highlight` | `boolean` | `true` | Enable visual highlight overlays |
 | `highlightShowLabels` | `boolean` | `true` | Show text labels (name, count, duration, cause) above highlights |
-| `highlightOpacity` | `number` | `0.3` | Peak opacity of highlight overlays (0–1) |
+| `highlightOpacity` | `number` | `0.8` | Peak opacity of highlight overlays (0–1) |
 | `highlightFlushInterval` | `number` | `250` | Milliseconds between highlight flush cycles |
 | `highlightAnimationDuration` | `number` | `1200` | Highlight fade-out animation duration (ms) |
 

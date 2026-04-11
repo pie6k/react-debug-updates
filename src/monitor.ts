@@ -68,7 +68,7 @@ export function startReactUpdatesMonitor(options: MonitorOptions = {}): () => vo
     highlightFlushInterval = 250,
     highlightAnimationDuration = 1200,
     highlightShowLabels = true,
-    highlightOpacity = 0.3,
+    highlightOpacity = 0.8,
   } = options;
   if (typeof window === "undefined") {
     throw new Error(

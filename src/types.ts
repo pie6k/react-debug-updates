@@ -116,7 +116,7 @@ export interface MonitorOptions {
   highlight?: boolean;
   /** Show text labels (component name, count, duration, cause) above overlays. Default: true */
   highlightShowLabels?: boolean;
-  /** Peak opacity of highlight overlays (0–1). Default: 0.3 */
+  /** Peak opacity of highlight overlays (0–1). Default: 0.8 */
   highlightOpacity?: number;
   /** Time between highlight flush cycles (ms). Default: 250 */
   highlightFlushInterval?: number;
