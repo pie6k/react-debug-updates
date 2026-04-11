@@ -2,19 +2,21 @@
 
 See exactly which React components re-render, how often, how long they take, and *why* — all without modifying your components.
 
+Created and used at [Screen Studio](https://screen.studio).
+
 ![highlight overlays](https://img.shields.io/badge/overlays-visual%20highlights-61dafb) ![zero config](https://img.shields.io/badge/setup-zero%20config-green)
 
 <img src="demo.gif" alt="demo" width="852" height="476" />
 
 ## Why?
 
-I was working on an Electron app and spent hours trying to get the official React DevTools to work with it. DevTools' Electron integration is fragile, poorly documented, and breaks between versions. I just needed to see which components were re-rendering so I could fix performance issues.
+I needed to debug React re-render performance in an Electron app, but I could never get the official React DevTools to work with Electron. The integration is fragile, poorly documented, and breaks between versions. I just needed to see which components were re-rendering.
 
 So I wrote this — a plug-and-play one-liner that gives you visual highlight overlays and console logging for React re-renders. No browser extension, no Electron hacks, no configuration. Works in any React web environment — browsers, Electron, iframes.
 
 ## How it works
 
-Hooks into `__REACT_DEVTOOLS_GLOBAL_HOOK__` to intercept every React commit. Uses the same fiber tree diffing approach as React DevTools to detect which components actually re-rendered. No React DevTools extension required. No wrappers, no HOCs, no code changes — just call `startReactUpdatesMonitor()` and you get:
+Hooks into `__REACT_DEVTOOLS_GLOBAL_HOOK__` to intercept every React commit. Detects re-rendered components using the exact same fiber tree diffing approach as the official React DevTools — following their original implementation of `didFiberRender` and parallel tree walking. No React DevTools extension required. No wrappers, no HOCs, no code changes — just call `startReactUpdatesMonitor()` and you get:
 
 - **Visual highlights** — highlight boxes on re-rendered DOM nodes with a heat-map color scale (blue → red as render count increases)
 - **Console logging** — grouped, color-coded re-render reports with component tree paths and render durations
