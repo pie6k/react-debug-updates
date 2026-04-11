@@ -1,8 +1,7 @@
-export { attachRenderLogger } from "./logger.js";
+export { monitor } from "./monitor.js";
 export type {
-  LoggerOptions,
-  RenderLogger,
+  MonitorOptions,
+  UpdateMonitor,
   RenderEntry,
-  HighlightOptions,
   UpdateCause,
 } from "./types.js";

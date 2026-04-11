@@ -63,10 +63,10 @@ export interface DetectedRender {
 }
 
 // ────────────────────────────────────────────
-// Pending entry (ready for overlay / console)
+// Highlight entry (ready for overlay / console)
 // ────────────────────────────────────────────
 
-export interface PendingEntry {
+export interface HighlightEntry {
   component: string;
   path: string;
   duration: number;
@@ -76,19 +76,19 @@ export interface PendingEntry {
 }
 
 // ────────────────────────────────────────────
-// Public API types
+// Overlay config (internal, all required)
 // ────────────────────────────────────────────
 
-export interface HighlightOptions {
-  /** Time between flushes (ms). Default: 250 */
-  flushInterval?: number;
-  /** Total animation duration (ms). Default: 1200 */
-  animationDuration?: number;
-  /** Show text labels (component name, count, duration, cause) above overlays. Default: true */
-  showLabels?: boolean;
-  /** Peak opacity of overlay highlights (0–1). Default: 0.3 */
-  opacity?: number;
+export interface OverlayConfig {
+  flushInterval: number;
+  animationDuration: number;
+  showLabels: boolean;
+  opacity: number;
 }
+
+// ────────────────────────────────────────────
+// Public API types
+// ────────────────────────────────────────────
 
 export interface RenderEntry {
   component: string;
@@ -98,7 +98,7 @@ export interface RenderEntry {
   causes: UpdateCause[];
 }
 
-export interface LoggerOptions {
+export interface MonitorOptions {
   /** Suppress console output. Default: false */
   silent?: boolean;
   /**
@@ -113,8 +113,6 @@ export interface LoggerOptions {
   bufferSize?: number;
   /** Filter — return `false` to skip an entry. */
   filter?: (entry: RenderEntry) => boolean;
-  /** Enable visual highlight overlays. `true` for defaults, or pass options. */
-  highlight?: boolean | HighlightOptions;
   /**
    * Detect and display *why* each component re-rendered.
    *
@@ -123,11 +121,24 @@ export interface LoggerOptions {
    * Requires a React dev build (`_debugHookTypes`). Default: `false`
    */
   showCauses?: boolean;
+
+  // ── Overlay options ──
+
+  /** Enable visual highlight overlays. Default: true */
+  overlay?: boolean;
+  /** Show text labels (component name, count, duration, cause) above overlays. Default: true */
+  showLabels?: boolean;
+  /** Peak opacity of overlay highlights (0–1). Default: 0.3 */
+  opacity?: number;
+  /** Time between overlay flush cycles (ms). Default: 250 */
+  flushInterval?: number;
+  /** Overlay fade-out animation duration (ms). Default: 1200 */
+  animationDuration?: number;
 }
 
-export interface RenderLogger {
+export interface UpdateMonitor {
   /** Ring buffer of recorded re-render entries. */
   entries: RenderEntry[];
   /** Unhook from React and clean up overlays. */
-  disconnect: () => void;
+  stop: () => void;
 }

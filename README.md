@@ -1,17 +1,23 @@
 # react-debug-updates
 
-Visual debugging overlays and console logging for React re-renders. See exactly which components re-render, how often, how long they take, and *why* they re-rendered — all without modifying your components.
+See exactly which React components re-render, how often, how long they take, and *why* — all without modifying your components.
 
 ![highlight overlays](https://img.shields.io/badge/overlays-visual%20highlights-61dafb) ![zero config](https://img.shields.io/badge/setup-zero%20config-green)
 
 <img src="demo.gif" alt="demo" width="852" height="476" />
 
+## Why?
+
+I was working on an Electron app and spent hours trying to get the official React DevTools to work with it. DevTools' Electron integration is fragile, poorly documented, and breaks between versions. I just needed to see which components were re-rendering so I could fix performance issues.
+
+So I wrote this — a plug-and-play one-liner that gives you visual highlight overlays and console logging for React re-renders. No browser extension, no Electron hacks, no configuration. Works in any React web environment — browsers, Electron, iframes.
+
 ## How it works
 
-Hooks into `__REACT_DEVTOOLS_GLOBAL_HOOK__` to intercept every React commit. Works in any React web environment — browsers, Electron, iframes — no React DevTools extension required. No wrappers, no HOCs, no code changes — just call `attachRenderLogger()` and you get:
+Hooks into `__REACT_DEVTOOLS_GLOBAL_HOOK__` to intercept every React commit. Uses the same fiber tree diffing approach as React DevTools to detect which components actually re-rendered. No React DevTools extension required. No wrappers, no HOCs, no code changes — just call `monitor()` and you get:
 
-- **Console logging** — grouped, color-coded re-render reports with component tree paths and render durations
 - **Visual overlays** — highlight boxes on re-rendered DOM nodes with a heat-map color scale (blue → red as render count increases)
+- **Console logging** — grouped, color-coded re-render reports with component tree paths and render durations
 - **Cause detection** — pinpoint *which* `useState`, `useReducer`, `useSyncExternalStore`, or `useContext` hook triggered each re-render, with previous→next values
 
 ## Install
@@ -26,28 +32,36 @@ pnpm add react-debug-updates
 
 ## Quick start
 
-Import and call `attachRenderLogger` **before** React renders anything — ideally at the very top of your entry point. This ensures the hook is in place before the first commit.
+Import and call `monitor` **before** React renders anything — ideally at the very top of your entry point. This ensures the hook is in place before the first commit.
 
 ```ts
-import { attachRenderLogger } from "react-debug-updates";
+import { monitor } from "react-debug-updates";
 
-// Call before React renders — top of your entry point
-const logger = attachRenderLogger({
-  highlight: true,
-  showCauses: true,
-});
+// One-liner — overlays + console logging out of the box
+const updates = monitor();
 
 // Later, to clean up:
-logger?.disconnect();
+updates?.stop();
 ```
 
 ### Dev-only guard
 
 ```ts
 if (process.env.NODE_ENV === "development") {
-  const { attachRenderLogger } = await import("react-debug-updates");
-  attachRenderLogger({ highlight: true, showCauses: true });
+  const { monitor } = await import("react-debug-updates");
+  monitor();
 }
+```
+
+### With options
+
+```ts
+monitor({
+  showCauses: true,
+  opacity: 0.5,
+  showLabels: false,
+  silent: true, // overlays only, no console output
+});
 ```
 
 ## Requirements
@@ -57,36 +71,31 @@ if (process.env.NODE_ENV === "development") {
 
 ## API
 
-### `attachRenderLogger(options?): RenderLogger | null`
+### `monitor(options?): UpdateMonitor | null`
 
-Returns a `RenderLogger` handle, or `null` if the DevTools hook is not available.
+Returns an `UpdateMonitor` handle, or `null` if the DevTools hook is not available.
 
 #### Options
 
 | Option | Type | Default | Description |
 | --- | --- | --- | --- |
-| `silent` | `boolean` | `false` | Suppress console output |
 | `mode` | `"self-triggered" \| "all"` | `"self-triggered"` | `"self-triggered"` tracks only components whose own state changed. `"all"` includes children swept by parent updates |
-| `bufferSize` | `number` | `500` | Max entries kept in the ring buffer |
-| `filter` | `(entry: RenderEntry) => boolean` | — | Return `false` to skip an entry |
-| `highlight` | `boolean \| HighlightOptions` | `false` | Enable visual overlay highlights |
 | `showCauses` | `boolean` | `false` | Detect and display why each component re-rendered |
-
-#### `HighlightOptions`
-
-| Option | Type | Default | Description |
-| --- | --- | --- | --- |
-| `flushInterval` | `number` | `250` | Milliseconds between overlay flush cycles |
-| `animationDuration` | `number` | `1200` | Overlay fade-out animation duration (ms) |
+| `silent` | `boolean` | `false` | Suppress console output |
+| `overlay` | `boolean` | `true` | Enable visual highlight overlays |
 | `showLabels` | `boolean` | `true` | Show text labels (name, count, duration, cause) above overlays |
 | `opacity` | `number` | `0.3` | Peak opacity of overlay highlights (0–1) |
+| `flushInterval` | `number` | `250` | Milliseconds between overlay flush cycles |
+| `animationDuration` | `number` | `1200` | Overlay fade-out animation duration (ms) |
+| `bufferSize` | `number` | `500` | Max entries kept in the ring buffer |
+| `filter` | `(entry: RenderEntry) => boolean` | — | Return `false` to skip an entry |
 
-### `RenderLogger`
+### `UpdateMonitor`
 
 | Property | Type | Description |
 | --- | --- | --- |
 | `entries` | `RenderEntry[]` | Ring buffer of recorded re-render entries |
-| `disconnect` | `() => void` | Unhook from React and remove all overlays |
+| `stop` | `() => void` | Unhook from React and remove all overlays |
 
 ### `RenderEntry`
 

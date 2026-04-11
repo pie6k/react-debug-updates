@@ -1,4 +1,4 @@
-import type { HighlightOptions, PendingEntry } from "./types.js";
+import type { OverlayConfig, HighlightEntry } from "./types.js";
 import { formatCausesShort } from "./format.js";
 import { acquireOverlay, OVERLAY_ANIMATION_NAME } from "./overlay.js";
 
@@ -15,18 +15,11 @@ function heatColor(count: number, alpha: number): string {
 }
 
 // ────────────────────────────────────────────
-// Batched flush
+// Highlight scheduler
 // ────────────────────────────────────────────
 //
-// Commit path just pushes lightweight refs (no DOM reads, no formatting).
+// Commit path just pushes lightweight entries (no DOM reads, no formatting).
 // Flush (setInterval): batched rect reads → batched DOM writes.
-
-export const HIGHLIGHT_DEFAULTS: Required<HighlightOptions> = {
-  flushInterval: 250,
-  animationDuration: 1200,
-  showLabels: true,
-  opacity: 0.3,
-};
 
 interface CoalescedEntry {
   count: number;
@@ -39,8 +32,8 @@ interface CoalescedEntry {
   causeSummary: string;
 }
 
-export function createBatcher(options: Required<HighlightOptions>) {
-  let pending: PendingEntry[] = [];
+export function createHighlighter(config: OverlayConfig) {
+  let pending: HighlightEntry[] = [];
   let timer: ReturnType<typeof setInterval> | null = null;
 
   function flush() {
@@ -105,11 +98,11 @@ export function createBatcher(options: Required<HighlightOptions>) {
       style.height = `${rect.height}px`;
       style.backgroundColor = fillColor;
       style.border = `1.5px solid ${borderColor}`;
-      style.setProperty("--rdu-opacity", String(options.opacity));
-      style.animation = `${OVERLAY_ANIMATION_NAME} ${options.animationDuration}ms ease-out forwards`;
+      style.setProperty("--rdu-opacity", String(config.opacity));
+      style.animation = `${OVERLAY_ANIMATION_NAME} ${config.animationDuration}ms ease-out forwards`;
 
       const label = element.firstElementChild as HTMLElement;
-      if (options.showLabels) {
+      if (config.showLabels) {
         const countText = coalesced.count > 1 ? ` ×${coalesced.count}` : "";
         const durationText =
           coalesced.totalDuration > 0
@@ -127,10 +120,10 @@ export function createBatcher(options: Required<HighlightOptions>) {
     }
   }
 
-  function push(entry: PendingEntry) {
+  function push(entry: HighlightEntry) {
     pending.push(entry);
     if (!timer) {
-      timer = setInterval(flush, options.flushInterval);
+      timer = setInterval(flush, config.flushInterval);
     }
   }
 

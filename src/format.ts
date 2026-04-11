@@ -1,4 +1,4 @@
-import type { PendingEntry, UpdateCause } from "./types.js";
+import type { HighlightEntry, UpdateCause } from "./types.js";
 
 // ────────────────────────────────────────────
 // Value formatting
@@ -91,7 +91,7 @@ export function formatCausesConsole(causes: UpdateCause[]): string[] {
 
 /** Log re-renders as a collapsed console group. */
 export function logRerendersToConsole(
-  entries: PendingEntry[],
+  entries: HighlightEntry[],
   showCauses: boolean,
 ) {
   if (entries.length === 0) return;

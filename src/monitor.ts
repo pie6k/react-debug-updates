@@ -1,10 +1,10 @@
 import type {
   DevToolsHook,
   FiberRoot,
-  LoggerOptions,
-  PendingEntry,
+  HighlightEntry,
+  MonitorOptions,
   RenderEntry,
-  RenderLogger,
+  UpdateMonitor,
 } from "./types.js";
 import {
   detectRenders,
@@ -14,28 +14,33 @@ import {
 } from "./fiber.js";
 import { detectCauses } from "./causes.js";
 import { logRerendersToConsole } from "./format.js";
-import { HIGHLIGHT_DEFAULTS, createBatcher } from "./batcher.js";
+import { createHighlighter } from "./highlights.js";
 import { disposeAllOverlays } from "./overlay.js";
 
 /**
- * Attach a render logger to React's DevTools hook.
+ * Start monitoring React re-renders.
  *
  * Hooks into `__REACT_DEVTOOLS_GLOBAL_HOOK__.onCommitFiberRoot` to intercept
  * every React commit. Records re-render entries, optionally logs them to the
  * console, and optionally shows visual highlight overlays on re-rendered DOM nodes.
  *
- * Returns a `RenderLogger` handle, or `null` if the DevTools hook is not found.
+ * Call this **before** React renders anything — ideally at the very top of
+ * your entry point.
+ *
+ * Returns an `UpdateMonitor` handle, or `null` if the DevTools hook is not found.
  */
-export function attachRenderLogger(
-  options: LoggerOptions = {},
-): RenderLogger | null {
+export function monitor(options: MonitorOptions = {}): UpdateMonitor | null {
   const {
     silent = false,
     bufferSize = 500,
     filter,
-    highlight = false,
+    overlay = true,
     mode = "self-triggered",
     showCauses = false,
+    flushInterval = 250,
+    animationDuration = 1200,
+    showLabels = true,
+    opacity = 0.3,
   } = options;
 
   const hook = (
@@ -50,14 +55,9 @@ export function attachRenderLogger(
     return null;
   }
 
-  const highlightOptions = highlight
-    ? {
-        ...HIGHLIGHT_DEFAULTS,
-        ...(typeof highlight === "object" ? highlight : {}),
-      }
+  const highlighter = overlay
+    ? createHighlighter({ flushInterval, animationDuration, showLabels, opacity })
     : null;
-
-  const batcher = highlightOptions ? createBatcher(highlightOptions) : null;
 
   const entries: RenderEntry[] = [];
   const previousOnCommit = hook.onCommitFiberRoot.bind(hook);
@@ -74,14 +74,14 @@ export function attachRenderLogger(
     if (detectedRenders.length === 0) return;
 
     // 2. Build full entries: resolve names, DOM nodes, causes
-    const pendingEntries: PendingEntry[] = [];
+    const highlightEntries: HighlightEntry[] = [];
 
     for (let i = 0; i < detectedRenders.length; i++) {
       const { fiber, depth } = detectedRenders[i];
       const name = getComponentName(fiber);
       if (!name) continue;
 
-      const pendingEntry: PendingEntry = {
+      const highlightEntry: HighlightEntry = {
         component: name,
         path: getFiberPath(fiber),
         duration: fiber.actualDuration ?? 0,
@@ -91,11 +91,11 @@ export function attachRenderLogger(
       };
 
       const renderEntry: RenderEntry = {
-        component: pendingEntry.component,
-        path: pendingEntry.path,
-        duration: pendingEntry.duration,
+        component: highlightEntry.component,
+        path: highlightEntry.path,
+        duration: highlightEntry.duration,
         timestamp: performance.now(),
-        causes: pendingEntry.causes,
+        causes: highlightEntry.causes,
       };
 
       if (filter && !filter(renderEntry)) continue;
@@ -103,19 +103,19 @@ export function attachRenderLogger(
       if (entries.length >= bufferSize) entries.shift();
       entries.push(renderEntry);
 
-      pendingEntries.push(pendingEntry);
-      batcher?.push(pendingEntry);
+      highlightEntries.push(highlightEntry);
+      highlighter?.push(highlightEntry);
     }
 
     // 3. Console output
     if (!silent) {
-      logRerendersToConsole(pendingEntries, showCauses);
+      logRerendersToConsole(highlightEntries, showCauses);
     }
   };
 
-  const disconnect = () => {
+  const stop = () => {
     hook.onCommitFiberRoot = previousOnCommit;
-    batcher?.dispose();
+    highlighter?.dispose();
     disposeAllOverlays();
   };
 
@@ -126,5 +126,5 @@ export function attachRenderLogger(
     );
   }
 
-  return { entries, disconnect };
+  return { entries, stop };
 }
