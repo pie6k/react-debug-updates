@@ -1,6 +1,6 @@
 {
   "name": "react-debug-updates",
-  "version": "0.1.13",
+  "version": "0.1.14",
   "description": "See why React components re-render — visual overlays, console logging, and hook-level cause detection with zero code changes",
   "type": "module",
   "main": "./dist/react-debug-updates.cjs",
