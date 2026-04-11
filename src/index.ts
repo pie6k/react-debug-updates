@@ -1,7 +1,2 @@
-export { monitor } from "./monitor.js";
-export type {
-  MonitorOptions,
-  UpdateMonitor,
-  RenderEntry,
-  UpdateCause,
-} from "./types.js";
+export { startReactUpdatesMonitor } from "./monitor.js";
+export type { MonitorOptions, UpdateCause } from "./types.js";

@@ -3,8 +3,6 @@ import type {
   FiberRoot,
   HighlightEntry,
   MonitorOptions,
-  RenderEntry,
-  UpdateMonitor,
 } from "./types.js";
 import {
   detectRenders,
@@ -18,48 +16,73 @@ import { createHighlighter } from "./highlights.js";
 import { disposeAllOverlays } from "./overlay.js";
 
 /**
+ * Ensure __REACT_DEVTOOLS_GLOBAL_HOOK__ exists on window.
+ *
+ * React reads this hook during initialization — if it's missing, React will
+ * never connect. When this library is imported before React (the recommended
+ * setup), we need to create a minimal hook so React can find and register with it.
+ *
+ * If a hook already exists (e.g. from the React DevTools extension), we leave
+ * it untouched and hook into it.
+ */
+function ensureDevToolsHook(win: Window): DevToolsHook {
+  const global = win as unknown as {
+    __REACT_DEVTOOLS_GLOBAL_HOOK__?: DevToolsHook;
+  };
+
+  if (!global.__REACT_DEVTOOLS_GLOBAL_HOOK__) {
+    global.__REACT_DEVTOOLS_GLOBAL_HOOK__ = {
+      supportsFiber: true,
+      inject() {
+        return 1;
+      },
+      onCommitFiberRoot() {},
+      onCommitFiberUnmount() {},
+      onPostCommitFiberRoot() {},
+      checkDCE() {},
+    } as DevToolsHook;
+  }
+
+  return global.__REACT_DEVTOOLS_GLOBAL_HOOK__;
+}
+
+/**
  * Start monitoring React re-renders.
  *
  * Hooks into `__REACT_DEVTOOLS_GLOBAL_HOOK__.onCommitFiberRoot` to intercept
- * every React commit. Records re-render entries, optionally logs them to the
- * console, and optionally shows visual highlight overlays on re-rendered DOM nodes.
+ * every React commit. Shows visual highlight overlays on re-rendered DOM nodes
+ * and optionally logs re-renders to the console.
  *
  * Call this **before** React renders anything — ideally at the very top of
  * your entry point.
  *
- * Returns an `UpdateMonitor` handle, or `null` if the DevTools hook is not found.
+ * Returns a `stop` function to unhook and clean up, or `null` if called
+ * in a non-browser environment (e.g. SSR).
  */
-export function monitor(options: MonitorOptions = {}): UpdateMonitor | null {
-  const {
-    silent = false,
-    bufferSize = 500,
-    filter,
-    overlay = true,
-    mode = "self-triggered",
-    showCauses = false,
-    flushInterval = 250,
-    animationDuration = 1200,
-    showLabels = true,
-    opacity = 0.3,
-  } = options;
+export function startReactUpdatesMonitor({
+  logToConsole = false,
+  highlight = true,
+  mode = "self-triggered",
+  reasonOfUpdate = false,
+  highlightFlushInterval = 250,
+  highlightAnimationDuration = 1200,
+  highlightShowLabels = true,
+  highlightOpacity = 0.3,
+}: MonitorOptions = {}): (() => void) | null {
+  // SSR guard — nothing to do without a DOM
+  if (typeof window === "undefined") return null;
 
-  const hook = (
-    window as unknown as { __REACT_DEVTOOLS_GLOBAL_HOOK__?: DevToolsHook }
-  ).__REACT_DEVTOOLS_GLOBAL_HOOK__;
+  const hook = ensureDevToolsHook(window);
 
-  if (!hook) {
-    console.warn(
-      "[react-debug-updates] __REACT_DEVTOOLS_GLOBAL_HOOK__ not found. " +
-        "Make sure React DevTools or a dev build of React is active.",
-    );
-    return null;
-  }
-
-  const highlighter = overlay
-    ? createHighlighter({ flushInterval, animationDuration, showLabels, opacity })
+  const highlighter = highlight
+    ? createHighlighter({
+        flushInterval: highlightFlushInterval,
+        animationDuration: highlightAnimationDuration,
+        showLabels: highlightShowLabels,
+        opacity: highlightOpacity,
+      })
     : null;
 
-  const entries: RenderEntry[] = [];
   const previousOnCommit = hook.onCommitFiberRoot.bind(hook);
 
   hook.onCommitFiberRoot = (
@@ -81,50 +104,35 @@ export function monitor(options: MonitorOptions = {}): UpdateMonitor | null {
       const name = getComponentName(fiber);
       if (!name) continue;
 
-      const highlightEntry: HighlightEntry = {
+      const entry: HighlightEntry = {
         component: name,
         path: getFiberPath(fiber),
         duration: fiber.actualDuration ?? 0,
         depth,
         domNode: findNearestDOMNode(fiber),
-        causes: showCauses ? detectCauses(fiber) : [],
+        causes: reasonOfUpdate ? detectCauses(fiber) : [],
       };
 
-      const renderEntry: RenderEntry = {
-        component: highlightEntry.component,
-        path: highlightEntry.path,
-        duration: highlightEntry.duration,
-        timestamp: performance.now(),
-        causes: highlightEntry.causes,
-      };
-
-      if (filter && !filter(renderEntry)) continue;
-
-      if (entries.length >= bufferSize) entries.shift();
-      entries.push(renderEntry);
-
-      highlightEntries.push(highlightEntry);
-      highlighter?.push(highlightEntry);
+      highlightEntries.push(entry);
+      highlighter?.push(entry);
     }
 
     // 3. Console output
-    if (!silent) {
-      logRerendersToConsole(highlightEntries, showCauses);
+    if (logToConsole) {
+      logRerendersToConsole(highlightEntries, reasonOfUpdate);
     }
   };
 
-  const stop = () => {
-    hook.onCommitFiberRoot = previousOnCommit;
-    highlighter?.dispose();
-    disposeAllOverlays();
-  };
-
-  if (!silent) {
+  if (logToConsole) {
     console.log(
       "%c⚛ react-debug-updates attached",
       "color: #61dafb; font-weight: bold",
     );
   }
 
-  return { entries, stop };
+  return () => {
+    hook.onCommitFiberRoot = previousOnCommit;
+    highlighter?.dispose();
+    disposeAllOverlays();
+  };
 }

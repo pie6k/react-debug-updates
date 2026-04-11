@@ -14,11 +14,11 @@ So I wrote this — a plug-and-play one-liner that gives you visual highlight ov
 
 ## How it works
 
-Hooks into `__REACT_DEVTOOLS_GLOBAL_HOOK__` to intercept every React commit. Uses the same fiber tree diffing approach as React DevTools to detect which components actually re-rendered. No React DevTools extension required. No wrappers, no HOCs, no code changes — just call `monitor()` and you get:
+Hooks into `__REACT_DEVTOOLS_GLOBAL_HOOK__` to intercept every React commit. Uses the same fiber tree diffing approach as React DevTools to detect which components actually re-rendered. No React DevTools extension required. No wrappers, no HOCs, no code changes — just call `startReactUpdatesMonitor()` and you get:
 
-- **Visual overlays** — highlight boxes on re-rendered DOM nodes with a heat-map color scale (blue → red as render count increases)
+- **Visual highlights** — highlight boxes on re-rendered DOM nodes with a heat-map color scale (blue → red as render count increases)
 - **Console logging** — grouped, color-coded re-render reports with component tree paths and render durations
-- **Cause detection** — pinpoint *which* `useState`, `useReducer`, `useSyncExternalStore`, or `useContext` hook triggered each re-render, with previous→next values
+- **Update reasons** — pinpoint *which* `useState`, `useReducer`, `useSyncExternalStore`, or `useContext` hook triggered each re-render, with previous→next values
 
 ## Install
 
@@ -32,80 +32,61 @@ pnpm add react-debug-updates
 
 ## Quick start
 
-Import and call `monitor` **before** React renders anything — ideally at the very top of your entry point. This ensures the hook is in place before the first commit.
+Import and call `startReactUpdatesMonitor` **before** React renders anything — ideally at the very top of your entry point. This ensures the hook is in place before the first commit.
 
 ```ts
-import { monitor } from "react-debug-updates";
+import { startReactUpdatesMonitor } from "react-debug-updates";
 
-// One-liner — overlays + console logging out of the box
-const updates = monitor();
+// One-liner — visual highlights out of the box
+const stop = startReactUpdatesMonitor();
 
 // Later, to clean up:
-updates?.stop();
+stop?.();
 ```
 
 ### Dev-only guard
 
 ```ts
 if (process.env.NODE_ENV === "development") {
-  const { monitor } = await import("react-debug-updates");
-  monitor();
+  const { startReactUpdatesMonitor } = await import("react-debug-updates");
+  startReactUpdatesMonitor();
 }
 ```
 
 ### With options
 
 ```ts
-monitor({
-  showCauses: true,
-  opacity: 0.5,
-  showLabels: false,
-  silent: true, // overlays only, no console output
+startReactUpdatesMonitor({
+  reasonOfUpdate: true,
+  logToConsole: true,
+  highlightOpacity: 0.5,
+  highlightShowLabels: false,
 });
 ```
 
 ## Requirements
 
 - A **React dev build** (which automatically creates `__REACT_DEVTOOLS_GLOBAL_HOOK__`) — no browser extension needed
-- For `showCauses` and render durations: React must be in **dev mode** (provides `_debugHookTypes` and `actualDuration` on fibers)
+- For `reasonOfUpdate` and render durations: React must be in **dev mode** (provides `_debugHookTypes` and `actualDuration` on fibers)
 
 ## API
 
-### `monitor(options?): UpdateMonitor | null`
+### `startReactUpdatesMonitor(options?): (() => void) | null`
 
-Returns an `UpdateMonitor` handle, or `null` if the DevTools hook is not available.
+Returns a `stop` function to unhook from React and remove all overlays, or `null` if the DevTools hook is not available.
 
 #### Options
 
 | Option | Type | Default | Description |
 | --- | --- | --- | --- |
 | `mode` | `"self-triggered" \| "all"` | `"self-triggered"` | `"self-triggered"` tracks only components whose own state changed. `"all"` includes children swept by parent updates |
-| `showCauses` | `boolean` | `false` | Detect and display why each component re-rendered |
-| `silent` | `boolean` | `false` | Suppress console output |
-| `overlay` | `boolean` | `true` | Enable visual highlight overlays |
-| `showLabels` | `boolean` | `true` | Show text labels (name, count, duration, cause) above overlays |
-| `opacity` | `number` | `0.3` | Peak opacity of overlay highlights (0–1) |
-| `flushInterval` | `number` | `250` | Milliseconds between overlay flush cycles |
-| `animationDuration` | `number` | `1200` | Overlay fade-out animation duration (ms) |
-| `bufferSize` | `number` | `500` | Max entries kept in the ring buffer |
-| `filter` | `(entry: RenderEntry) => boolean` | — | Return `false` to skip an entry |
-
-### `UpdateMonitor`
-
-| Property | Type | Description |
-| --- | --- | --- |
-| `entries` | `RenderEntry[]` | Ring buffer of recorded re-render entries |
-| `stop` | `() => void` | Unhook from React and remove all overlays |
-
-### `RenderEntry`
-
-| Property | Type | Description |
-| --- | --- | --- |
-| `component` | `string` | Component display name |
-| `path` | `string` | Ancestor component path (e.g. `"App → Layout → Sidebar"`) |
-| `duration` | `number` | Render duration in ms (requires React dev mode) |
-| `timestamp` | `number` | `performance.now()` when the entry was recorded |
-| `causes` | `UpdateCause[]` | Why this component re-rendered (requires `showCauses`) |
+| `reasonOfUpdate` | `boolean` | `false` | Detect and display why each component re-rendered |
+| `logToConsole` | `boolean` | `false` | Log re-renders to the console |
+| `highlight` | `boolean` | `true` | Enable visual highlight overlays |
+| `highlightShowLabels` | `boolean` | `true` | Show text labels (name, count, duration, cause) above highlights |
+| `highlightOpacity` | `number` | `0.3` | Peak opacity of highlight overlays (0–1) |
+| `highlightFlushInterval` | `number` | `250` | Milliseconds between highlight flush cycles |
+| `highlightAnimationDuration` | `number` | `1200` | Highlight fade-out animation duration (ms) |
 
 ### `UpdateCause`
 
@@ -129,11 +110,11 @@ Returns an `UpdateMonitor` handle, or `null` if the DevTools hook is not availab
     ↳ useContext changed
 ```
 
-## Visual overlays
+## Visual highlights
 
 Re-rendered components get a highlight box that fades out. The color shifts from blue to red as the same node re-renders repeatedly within a flush window — making "hot" components visually obvious.
 
-Each overlay label shows: `ComponentName ×count duration (cause)`
+Each highlight label shows: `ComponentName ×count duration (cause)`
 
 ## License
 

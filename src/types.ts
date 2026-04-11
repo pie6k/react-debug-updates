@@ -90,17 +90,7 @@ export interface OverlayConfig {
 // Public API types
 // ────────────────────────────────────────────
 
-export interface RenderEntry {
-  component: string;
-  path: string;
-  duration: number;
-  timestamp: number;
-  causes: UpdateCause[];
-}
-
 export interface MonitorOptions {
-  /** Suppress console output. Default: false */
-  silent?: boolean;
   /**
    * Which re-renders to track.
    *  - `"self-triggered"` — only components whose own state/hooks changed
@@ -109,10 +99,6 @@ export interface MonitorOptions {
    * Default: `"self-triggered"`
    */
   mode?: "self-triggered" | "all";
-  /** Ring buffer size for stored entries. Default: 500 */
-  bufferSize?: number;
-  /** Filter — return `false` to skip an entry. */
-  filter?: (entry: RenderEntry) => boolean;
   /**
    * Detect and display *why* each component re-rendered.
    *
@@ -120,25 +106,20 @@ export interface MonitorOptions {
    * with previous→next values for state hooks.
    * Requires a React dev build (`_debugHookTypes`). Default: `false`
    */
-  showCauses?: boolean;
+  reasonOfUpdate?: boolean;
+  /** Log re-renders to the console. Default: false */
+  logToConsole?: boolean;
 
-  // ── Overlay options ──
+  // ── Highlight options ──
 
   /** Enable visual highlight overlays. Default: true */
-  overlay?: boolean;
+  highlight?: boolean;
   /** Show text labels (component name, count, duration, cause) above overlays. Default: true */
-  showLabels?: boolean;
-  /** Peak opacity of overlay highlights (0–1). Default: 0.3 */
-  opacity?: number;
-  /** Time between overlay flush cycles (ms). Default: 250 */
-  flushInterval?: number;
-  /** Overlay fade-out animation duration (ms). Default: 1200 */
-  animationDuration?: number;
-}
-
-export interface UpdateMonitor {
-  /** Ring buffer of recorded re-render entries. */
-  entries: RenderEntry[];
-  /** Unhook from React and clean up overlays. */
-  stop: () => void;
+  highlightShowLabels?: boolean;
+  /** Peak opacity of highlight overlays (0–1). Default: 0.3 */
+  highlightOpacity?: number;
+  /** Time between highlight flush cycles (ms). Default: 250 */
+  highlightFlushInterval?: number;
+  /** Highlight fade-out animation duration (ms). Default: 1200 */
+  highlightAnimationDuration?: number;
 }
